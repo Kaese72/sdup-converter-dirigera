@@ -76,6 +76,8 @@ func (target SDUPDirigeraTarget) handleEvent(msg []byte, updates chan adapter.Up
 		device = handleLightbulbEvent(id, event.Data.Attributes)
 	case strings.EqualFold(event.Data.Type, DeviceTypeOutlet):
 		device = handleOutletEvent(id, event.Data.Attributes)
+	case strings.EqualFold(event.Data.Type, DeviceTypeBlinds):
+		device = handleBlindsEvent(id, event.Data.Attributes)
 	default:
 		log.Info("Ignoring event for unrecognized device type", map[string]interface{}{"type": event.Data.Type, "id": id})
 		return nil
@@ -98,6 +100,18 @@ func handleLightbulbEvent(id string, attrs dirigeraclient.DeviceAttributes) *ing
 	return &ingestmodels.IngestDevice{
 		BridgeIdentifier: id,
 		Attributes:       []ingestmodels.IngestAttribute{{Name: AttributeActive, Boolean: &on}},
+	}
+}
+
+func handleBlindsEvent(id string, attrs dirigeraclient.DeviceAttributes) *ingestmodels.IngestDevice {
+	if attrs.BlindsCurrentLevel == nil {
+		log.Debug("Ignoring blinds event with no blindsCurrentLevel attribute", map[string]interface{}{"id": id})
+		return nil
+	}
+	level := *attrs.BlindsCurrentLevel
+	return &ingestmodels.IngestDevice{
+		BridgeIdentifier: id,
+		Attributes:       []ingestmodels.IngestAttribute{{Name: AttributeExtended, Numeric: &level}},
 	}
 }
 
