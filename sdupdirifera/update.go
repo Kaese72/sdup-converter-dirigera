@@ -11,6 +11,8 @@ import (
 const (
 	// AttributeActive represents whether the device is currently on or off
 	AttributeActive = "active"
+	// AttributeName represents the human-readable name of the device
+	AttributeName = "description"
 )
 
 const (
@@ -61,6 +63,22 @@ func createLightbulbDevice(d dirigeraclient.Device) ingestmodels.IngestDevice {
 		},
 	}
 
+	if d.Attributes.CustomName != "" {
+		name := d.Attributes.CustomName
+		device.Attributes = append(device.Attributes, ingestmodels.IngestAttribute{
+			Name: AttributeName,
+			Text: &name,
+		})
+	}
+
+	if d.Attributes.CustomName != "" {
+		name := d.Attributes.CustomName
+		device.Attributes = append(device.Attributes, ingestmodels.IngestAttribute{
+			Name: AttributeName,
+			Text: &name,
+		})
+	}
+
 	if d.Attributes.IsOn != nil {
 		on := *d.Attributes.IsOn
 		device.Attributes = append(device.Attributes, ingestmodels.IngestAttribute{
@@ -86,6 +104,14 @@ func createOutletDevice(d dirigeraclient.Device) ingestmodels.IngestDevice {
 				ArgumentSpecs: []ingestmodels.IngestArgumentSpec{},
 			},
 		},
+	}
+
+	if d.Attributes.CustomName != "" {
+		name := d.Attributes.CustomName
+		device.Attributes = append(device.Attributes, ingestmodels.IngestAttribute{
+			Name: AttributeName,
+			Text: &name,
+		})
 	}
 
 	if d.Attributes.IsOn != nil {

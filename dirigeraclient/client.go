@@ -19,7 +19,8 @@ type Device struct {
 
 // DeviceAttributes holds the state attributes of a device
 type DeviceAttributes struct {
-	IsOn *bool `json:"isOn,omitempty"`
+	IsOn       *bool  `json:"isOn,omitempty"`
+	CustomName string `json:"customName,omitempty"`
 }
 
 // Room represents the room a device belongs to
