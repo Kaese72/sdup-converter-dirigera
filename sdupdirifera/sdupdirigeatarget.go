@@ -19,23 +19,22 @@ type SDUPDirigeraTarget struct {
 	ignoreTLSErrors bool
 }
 
-// Initialize starts the updater by fetching all devices for the initial state,
-// then opens a WebSocket event stream to the Dirigera hub and continuously listens
-// for changes. If the connection drops it will reconnect and continue listening.
+// Initialize starts the updater. On each (re)connect it first pushes the full
+// device state, then opens a WebSocket event stream to the Dirigera hub and
+// listens for changes. On disconnect it waits 5 seconds before reconnecting.
 // The returned channel is never closed — the adapter is expected to run indefinitely.
 func (target SDUPDirigeraTarget) Initialize() (chan adapter.Update, error) {
 	channel := make(chan adapter.Update)
 	go func() {
-		if err := target.sendInitialState(channel); err != nil {
-			log.Error("Error when creating initial state", map[string]interface{}{"error": err.Error()})
-		}
-
 		for {
-			err := target.listenEventStream(channel)
-			if err != nil {
+			if err := target.sendInitialState(channel); err != nil {
+				log.Error("Failed to send full device state", map[string]interface{}{"error": err.Error()})
+			}
+			if err := target.listenEventStream(channel); err != nil {
 				log.Error("Event stream disconnected", map[string]interface{}{"error": err.Error()})
 			}
-			time.Sleep(2 * time.Second)
+			log.Info("Reconnecting to event stream in 5 seconds", nil)
+			time.Sleep(5 * time.Second)
 		}
 	}()
 	return channel, nil

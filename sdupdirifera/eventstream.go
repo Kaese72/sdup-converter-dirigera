@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Kaese72/device-store/ingestmodels"
 	log "github.com/Kaese72/huemie-lib/logging"
@@ -14,10 +15,18 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const (
+	// pingInterval is how often we send a WebSocket ping to keep the connection alive.
+	pingInterval = 30 * time.Second
+	// pongWait is how long we wait for any traffic (pong or message) before
+	// treating the connection as dead.
+	pongWait = 60 * time.Second
+)
+
 // DirigeraEvent represents an event from the Dirigera WebSocket stream
 type DirigeraEvent struct {
-	Type string              `json:"type"`
-	Data DirigeraEventData   `json:"data"`
+	Type string            `json:"type"`
+	Data DirigeraEventData `json:"data"`
 }
 
 // DirigeraEventData holds the device state from an event
@@ -43,11 +52,42 @@ func (target SDUPDirigeraTarget) listenEventStream(updates chan adapter.Update) 
 
 	log.Info("Connected to Dirigera event stream", nil)
 
+	// Any traffic (pong or message) resets the read deadline.
+	resetDeadline := func() {
+		conn.SetReadDeadline(time.Now().Add(pongWait))
+	}
+	resetDeadline()
+	conn.SetPongHandler(func(string) error {
+		resetDeadline()
+		return nil
+	})
+
+	// Ping goroutine — sends a ping every pingInterval.
+	// Stops when the connection is closed (WriteMessage returns an error).
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		ticker := time.NewTicker(pingInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+					return
+				}
+			case <-done:
+				return
+			}
+		}
+	}()
+
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
 			return fmt.Errorf("event stream read error: %w", err)
 		}
+		// Any received message is also proof the connection is alive.
+		resetDeadline()
 		if err := target.handleEvent(msg, updates); err != nil {
 			log.Error("Failed to handle event", map[string]interface{}{"error": err.Error()})
 		}
