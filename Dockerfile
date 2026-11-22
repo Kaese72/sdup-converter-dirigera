@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1
 # Build
-FROM --platform=linux/amd64 docker.io/golang:1.25-alpine AS builder
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.25-alpine AS builder
+ARG TARGETOS TARGETARCH
 WORKDIR /workspace
 COPY . .
 # We must run with CGO_ENABLED=0 because otherwise the alpine container wont be able to launch it unless we install more packages
-# We also must remove the "v" from the TARGETVARIANT since docker takes "v7" while go takes just "7"
-RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT//v/} CGO_ENABLED=0 go build -o sdup-converter-dirigera
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o sdup-converter-dirigera
 
 # Deployment
 FROM alpine:latest
